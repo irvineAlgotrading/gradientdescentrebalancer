@@ -1,0 +1,9 @@
+August 19, 2020
+
+ok i got it pretty much fully working, i need to add in another batch of tickers
+
+realistically, I am not sure how it is handling overnight data with holes and shit, and perhaps we should add a mean() for all gaps in the data so we just linearize the the step between the holes
+solves in roughly 1 minute, not bad but that will get much worse when the data history is expanded and 5+ more tickers are brought into the mix
+once the engine is running, we should try to evaluate the accuracy of the analysis and try to feed it a better feature than just price change - i get thats the risk model but perhaps we can affect the model for improved sensitivity
+**please suggest some tickers you would like to see in this mix
+https://github.com/irvineAlgotrading/gradientdescentrebalancer/blob/master/gradient%20descent%20rebalancer%20v1.1.ipynb
