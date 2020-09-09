@@ -7,3 +7,14 @@ solves in roughly 1 minute, not bad but that will get much worse when the data h
 once the engine is running, we should try to evaluate the accuracy of the analysis and try to feed it a better feature than just price change - i get thats the risk model but perhaps we can affect the model for improved sensitivity
 **please suggest some tickers you would like to see in this mix
 https://github.com/irvineAlgotrading/gradientdescentrebalancer/blob/master/gradient%20descent%20rebalancer%20v1.1.ipynb
+
+August 30, 2020
+
+Yeah the problem is the afterhours data is sporadic
+We kinda need to remap the data
+So all the gaps are just the prior price
+andy08/30/2020
+What do you think?
+We basically need to initialize a data stream of empty values
+For every minute as far back as the data goes
+And then we need to merge the txt file into that data, and for any zero value, we need it to take the prior time step value
