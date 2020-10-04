@@ -6,8 +6,9 @@
 
 import json, pdb
 import requests
-import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
 import tensorflow as tf
 # import matplotlib.pyplot as plt
 
@@ -30,7 +31,8 @@ TSLAdata.columns = ["timestamp", "open", "high", "low", "close", "volume"]
 
 EARLY_DEBUGGING = False
 DEBUGGING = True
-
+FILLING = True  # Fill the gap in time
+PLOT = False
 
 # In[ ]:
 
@@ -49,6 +51,7 @@ ticker_history = {}
 hist_length = 0
 average_returns = {}
 cumulative_returns = {}
+gap_limit = 10 * 10**9  # unit is nano second
 
 def fetch_all():
   for ticker in tickers:
@@ -154,8 +157,8 @@ for i in range(0, hist_length):
 
 # The first line creates an n × k matrix and the loops assign the corresponding values to each ticker.
 
-# In[ ]:
 
+# In[ ]:
 
 pretty_matrix = pd.DataFrame(excess_matrix).copy()
 pretty_matrix.columns = tickers
@@ -166,14 +169,61 @@ pretty_matrix.index = ticker_history[tickers[0]].index
 if (DEBUGGING):
     pdb.set_trace()
 
-# ----- ----- ----- -----
+
+# ----- ----- ----- ----- ----- ----- ----- ----- ----- ---- ----- -----]
+
 # To do
 # Filling gaps in input data
 # (1) Calculate timestamp gap
-mask = pretty_matrix.index.to_series().diff()  # <class 'pandas.core.series.Series'>
+if (FILLING):
+    # (Pdb) pretty_matrix
+    #                          TSLA
+    # timestamp
+    # 2020-01-02 04:03:00  0.001021
+    pretty_matrix_filled = pd.DataFrame(columns=pretty_matrix.columns)
+
+    # (Pdb) mask
+    # timestamp
+    # 2020-01-02 04:03:00        NaT
+    # 2020-01-02 04:04:00   00:01:00
+    mask = pretty_matrix.index.to_series().diff()  # <class 'pandas.core.series.Series'>
+
+    if (PLOT):  # Histogram of gap in time
+        a = mask.values[1:]  # First one is no number
+        _ = plt.hist(a, bins='auto')  # arguments are passed to np.histogram
+        plt.title("Histogram with 'auto' bins")
+
+        plt.show()
+
 # (2) if gap is larger than limit, add fabricated time stamp and value
-#     value could be from linear, cubic or sinc (Lanczos3) interpolation, 
+#     value could be from linear, cubic or sinc (Lanczos3) interpolation,
 #     super resolution
+    for i_dx, i in enumerate(pretty_matrix.index):
+        if (i_dx != 0) and (mask.iloc[i_dx].value > gap_limit):
+            # Linear
+            # Value difference between gap
+            difference = \
+                pretty_matrix.iloc[i_dx, 0] - pretty_matrix.iloc[i_dx - 1, 0]
+            # Increase of value in each insertion
+            increase = difference / int(mask.iloc[i_dx].value / gap_limit)
+            # Time difference between gap
+            difference_name = \
+                pretty_matrix.index[i_dx] - pretty_matrix.index[i_dx - 1]
+            # Increase of time in each insertion
+            increase_name = difference_name / int(mask.iloc[i_dx].value / gap_limit)
+            for j in range(int(mask.iloc[i_dx].value / gap_limit)):
+                cur_val = pretty_matrix.iloc[i_dx, 0] + j * increase
+                cur_name = pretty_matrix.index[i_dx] + j * increase_name
+                cur = pd.Series(data={pretty_matrix.columns[0]: cur_val},
+                    name=cur_name)
+                pretty_matrix_filled = \
+                    pretty_matrix_filled.append(
+                    cur, ignore_index=False)
+        else:
+            cur = pretty_matrix.iloc[i_dx]
+            pretty_matrix_filled = \
+                pretty_matrix_filled.append(cur, ignore_index=False)
+
 
 # ![alt text](https://cdn-images-1.medium.com/max/800/0*MKgTBXtRYApe1ycw)
 
@@ -183,8 +233,8 @@ mask = pretty_matrix.index.to_series().diff()  # <class 'pandas.core.series.Seri
 #
 # To this end, we will use our Excess Return Matrix to compute the Variance-covariance Matrix Σ from it.
 
-# In[ ]:
 
+# In[ ]:
 
 # Variance co-variance matrix
 
@@ -193,7 +243,6 @@ var_covar_matrix = product_matrix / hist_length
 
 
 # In[ ]:
-
 
 pretty_matrix = pd.DataFrame(var_covar_matrix).copy()
 pretty_matrix.columns = tickers
