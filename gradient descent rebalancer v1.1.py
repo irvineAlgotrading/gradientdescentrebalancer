@@ -31,7 +31,9 @@ TSLAdata.columns = ["timestamp", "open", "high", "low", "close", "volume"]
 
 EARLY_DEBUGGING = False
 DEBUGGING = True
-FILLING = True  # Fill the gap in time
+TESTING = False
+
+FILLING = False  # Fill the gap in time
 PLOT = False
 
 # In[ ]:
@@ -51,7 +53,8 @@ ticker_history = {}
 hist_length = 0
 average_returns = {}
 cumulative_returns = {}
-gap_limit = 10 * 10**9  # unit is nano second
+gap_limit = 60 * 10**9  # unit is nano second
+selected_year = 2016
 
 def fetch_all():
   for ticker in tickers:
@@ -72,17 +75,35 @@ def index_history(hist):
   return hist
 
 def filter_history_by_date(hist):
-  result = hist[hist.index.year >= 2016]
+  result = hist[hist.index.year >= selected_year]
   # result = result[result.index.day == 1] # every first of month, etc.
   return result
 
 fetch_all()
+
+# ----- ----- ----- ----- ----- ----- -----
+# To do
+# Filling gaps in input data
+# (1) Calculate timestamp gap
+# (2) if gap is larger than limit, add fabricated time stamp and value
+#     value could be from linear, cubic or sinc (Lanczos3) interpolation,
+#     super resolution
+hist = ticker_history[tickers[0]]
+
+hist_gap = pd.DataFrame(index=hist.index,
+		columns=hist.columns)
+hist_gap['gap'] = hist.index.to_series().diff()
+for i in hist.columns:
+     hist_gap[i] = hist[i].diff()
+
 hist_length = len(ticker_history[tickers[0]])
+
 
 
 # In[5]:
 
-
+# (Pdb) ticker_history['TSLA'].columns
+# Index(['Open', 'High', 'Low', 'Close', 'Volume', 'return', 'excess_return'], dtype='object')
 ticker_history['TSLA']
 
 
@@ -142,11 +163,15 @@ for i in range(0, hist_length):
   for idx, ticker in enumerate(tickers):
     excess_matrix[i][idx] = ticker_history[ticker].iloc[i]['excess_return']
 
+if (DEBUGGING):
+    pdb.set_trace()
 
 # In[9]:
 
 
 # Excess matrix
+
+
 
 excess_matrix = np.zeros((hist_length, len(tickers)))
 
@@ -160,6 +185,10 @@ for i in range(0, hist_length):
 
 # In[ ]:
 
+# (Pdb) pretty_matrix
+#                          TSLA
+# timestamp
+# 2020-01-02 04:03:00  0.001021
 pretty_matrix = pd.DataFrame(excess_matrix).copy()
 pretty_matrix.columns = tickers
 pretty_matrix.index = ticker_history[tickers[0]].index
@@ -172,10 +201,17 @@ if (DEBUGGING):
 
 # ----- ----- ----- ----- ----- ----- ----- ----- ----- ---- ----- -----]
 
-# To do
 # Filling gaps in input data
+# 60 second limt
+# Added row: 220359
+# Modified data size: 314877
 # (1) Calculate timestamp gap
 if (FILLING):
+
+    if (TESTING):
+        print ( "Input data size: {}".format(len(pretty_matrix)) )
+        total_added = 0  # Count of row adding
+
     # (Pdb) pretty_matrix
     #                          TSLA
     # timestamp
@@ -219,10 +255,18 @@ if (FILLING):
                 pretty_matrix_filled = \
                     pretty_matrix_filled.append(
                     cur, ignore_index=False)
+
+                if (TESTING):
+                    total_added += 1
+                    print ("Added row: {}".format(total_added))
         else:
             cur = pretty_matrix.iloc[i_dx]
             pretty_matrix_filled = \
                 pretty_matrix_filled.append(cur, ignore_index=False)
+
+    if (TESTING):
+        print ( "Modified data size: {}".format(len(pretty_matrix_filled)) )
+
 
 
 # ![alt text](https://cdn-images-1.medium.com/max/800/0*MKgTBXtRYApe1ycw)
@@ -248,7 +292,8 @@ pretty_matrix = pd.DataFrame(var_covar_matrix).copy()
 pretty_matrix.columns = tickers
 pretty_matrix.index = tickers
 
-pretty_matrix
+if (DEBUGGING):
+    pretty_matrix
 
 
 # ![alt text](https://cdn-images-1.medium.com/max/800/0*00nkyzYnQm3T28xN)
@@ -285,7 +330,8 @@ pretty_matrix = pd.DataFrame(std_deviations).copy()
 pretty_matrix.columns = ['Std Dev']
 pretty_matrix.index = tickers
 
-pretty_matrix
+if (DEBUGGING):
+    pretty_matrix
 
 
 # To generate the matrix with the standard deviation products, we multiply the above by its transpose.
@@ -305,7 +351,8 @@ pretty_matrix = pd.DataFrame(sdev_product_matrix).copy()
 pretty_matrix.columns = tickers
 pretty_matrix.index = tickers
 
-pretty_matrix
+if (DEBUGGING):
+    pretty_matrix
 
 
 # NameError: name 'correlation_matrix' is not defined
@@ -364,7 +411,9 @@ def minimize_volatility():
 weights = minimize_volatility()
 
 pretty_weights = pd.DataFrame(weights * 100, index = tickers, columns = ["Weight %"])
-pretty_weights
+
+if (DEBUGGING):
+    pretty_weights
 
 
 # So now, we can finally compute the Correlation Matrix, as we defined before.
@@ -376,7 +425,8 @@ pretty_matrix = pd.DataFrame(correlation_matrix).copy()
 pretty_matrix.columns = tickers
 pretty_matrix.index = tickers
 
-pretty_matrix
+if (DEBUGGING):
+    pretty_matrix
 
 
 # In the Correlation Matrix:
@@ -478,7 +528,9 @@ def minimize_volatility():
 weights = minimize_volatility()
 
 pretty_weights = pd.DataFrame(weights * 100, index = tickers, columns = ["Weight %"])
-pretty_weights
+
+if (DEBUGGING):
+    pretty_weights
 
 
 # In[ ]:
@@ -568,7 +620,8 @@ weights = maximize_sharpe_ratio()
 print("Took {:f}s to complete".format(time.time() - start))
 pretty_weights = pd.DataFrame(weights * 100, index = tickers, columns = ["Weight %"])
 
-pretty_weights
+if (DEBUGGING):
+    pretty_weights
 
 
 # In[ ]:
