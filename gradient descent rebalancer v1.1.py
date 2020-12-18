@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# gradient descent reblancer v1.1.py -
+#
+
+# To do
+#   Filling gaps in input data
+#     Only when market is opened.
+
 # In[1]:
 
 
@@ -33,8 +40,9 @@ EARLY_DEBUGGING = False
 DEBUGGING = True
 TESTING = False
 
-FILLING = False  # Fill the gap in time
-PLOT = False
+FILLING = True # Fill the gap in time
+PLOT = True
+
 
 # In[ ]:
 
@@ -201,7 +209,7 @@ if (DEBUGGING):
 
 # ----- ----- ----- ----- ----- ----- ----- ----- ----- ---- ----- -----]
 
-# Filling gaps in input data
+# Filling gaps in input data when gap is in market opened
 # 60 second limt
 # Added row: 220359
 # Modified data size: 314877
@@ -224,6 +232,11 @@ if (FILLING):
     # 2020-01-02 04:04:00   00:01:00
     mask = pretty_matrix.index.to_series().diff()  # <class 'pandas.core.series.Series'>
 
+    # Error
+    # numpy.core._exceptions.UFuncTypeError:
+    # Cannot cast ufunc 'less' input 1 from dtype('float64') to dtype('<m8[ns]')
+    # with casting rule 'same_kind'
+    # > /home/cloud/computer_programming/python/gradientdescentrebalancer/gradient descent rebalancer v1.1.py(236)<module>()
     if (PLOT):  # Histogram of gap in time
         a = mask.values[1:]  # First one is no number
         _ = plt.hist(a, bins='auto')  # arguments are passed to np.histogram
