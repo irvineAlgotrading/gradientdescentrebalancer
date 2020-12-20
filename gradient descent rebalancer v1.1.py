@@ -6,16 +6,19 @@
 
 # To do
 #   Filling gaps in input data
-#     Only when market is opened.
+#     Only when market is opened?
+#     second to 00:00:00 format
+#     display count in each bea in histogram
 
 # In[1]:
 
 
-import json, pdb
+import json, os, pdb, sys
 import requests
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import pickle as pkl
 import tensorflow as tf
 # import matplotlib.pyplot as plt
 
@@ -46,6 +49,12 @@ PLOT = True
 
 # In[ ]:
 
+# Input argument
+# Instead of command argument, Jupyter Notebook
+given_args = {
+    'in_file': "TSLA_2020_2020.txt",
+    'out_file': "gap.pkl"
+}
 
 
 
@@ -87,13 +96,18 @@ def filter_history_by_date(hist):
   # result = result[result.index.day == 1] # every first of month, etc.
   return result
 
+
+# ===== ===== ===== ===== ===== ===== =====
+# There is some non value in given data, so we will see how many
+inside_data = dict()
+
 fetch_all()
 
 # ----- ----- ----- ----- ----- ----- -----
 # To do
 # Filling gaps in input data
 # (1) Calculate timestamp gap
-# (2) if gap is larger than limit, add fabricated time stamp and value
+# (2) if gap is between lower and upper limits, add fabricated time stamp and value
 #     value could be from linear, cubic or sinc (Lanczos3) interpolation,
 #     super resolution
 hist = ticker_history[tickers[0]]
@@ -171,7 +185,7 @@ for i in range(0, hist_length):
   for idx, ticker in enumerate(tickers):
     excess_matrix[i][idx] = ticker_history[ticker].iloc[i]['excess_return']
 
-if (DEBUGGING):
+if (EARLY_DEBUGGING):
     pdb.set_trace()
 
 # In[9]:
@@ -203,7 +217,7 @@ pretty_matrix.index = ticker_history[tickers[0]].index
 
 # pretty_matrix
 
-if (DEBUGGING):
+if (EARLY_DEBUGGING):
     pdb.set_trace()
 
 
@@ -232,15 +246,45 @@ if (FILLING):
     # 2020-01-02 04:04:00   00:01:00
     mask = pretty_matrix.index.to_series().diff()  # <class 'pandas.core.series.Series'>
 
-    # Error
-    # numpy.core._exceptions.UFuncTypeError:
-    # Cannot cast ufunc 'less' input 1 from dtype('float64') to dtype('<m8[ns]')
-    # with casting rule 'same_kind'
-    # > /home/cloud/computer_programming/python/gradientdescentrebalancer/gradient descent rebalancer v1.1.py(236)<module>()
+    # check how many non value in the given data
+    for i in mask:
+        if type(i) not in inside_data.keys():
+            inside_data[type(i)] = 1
+        else:
+            inside_data[type(i)] += 1
+
+    if (EARLY_DEBUGGING):
+        pdb.set_trace()
+
     if (PLOT):  # Histogram of gap in time
-        a = mask.values[1:]  # First one is no number
-        _ = plt.hist(a, bins='auto')  # arguments are passed to np.histogram
+        # First one is not a number
+        # timedelta --> integer for historgram
+        a_temp = temp = \
+            [(np.timedelta64(i, 's')/np.timedelta64(1,'s')).astype(int)
+            for i in mask[1:]]
+
+        if (DEBUGGING):
+            try:
+                fileObject = open(given_args["out_file"], 'wb')
+                pkl.dump(a_temp, fileObject)
+                fileObject.close()
+            except Exception as e:
+                print (e.args)
+                sys.exit(1)
+            else:
+                print ("{} saved.".format(given_args["out_file"]))
+
+        # the histogram of the data
+         # arguments are passed to np.histogram
+        n, bins, patches = plt.hist(a_temp, bins='auto')
         plt.title("Histogram with 'auto' bins")
+
+        # To do
+        #   second to 00:00:00 format
+        #   display count in each bea in histogram
+
+        if (DEBUGGING):
+            pdb.set_trace()
 
         plt.show()
 
