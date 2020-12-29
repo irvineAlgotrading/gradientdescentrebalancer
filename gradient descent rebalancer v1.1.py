@@ -10,10 +10,16 @@
 #     second to 00:00:00 format
 #     display count in each bea in histogram
 
+# Reference:
+#   Add info in plot https://queirozf.com/entries/add-labels-and-text-to-matplotlib-plots-annotation-examples
+#   Format https://www.w3schools.com/python/ref_string_format.asp
+#
+
 # In[1]:
 
 
 import json, os, pdb, sys
+import statistics
 import requests
 import numpy as np
 import matplotlib.pyplot as plt
@@ -41,10 +47,11 @@ TSLAdata.columns = ["timestamp", "open", "high", "low", "close", "volume"]
 
 EARLY_DEBUGGING = False
 DEBUGGING = True
-TESTING = False
+TESTING = True
 
-FILLING = True # Fill the gap in time
+FILLING = True  # Fill the gap in time
 PLOT = True
+VALUE_DISP = True  # Value on plot?
 
 
 # In[ ]:
@@ -70,7 +77,8 @@ ticker_history = {}
 hist_length = 0
 average_returns = {}
 cumulative_returns = {}
-gap_limit = 60 * 10**9  # unit is nano second
+gap_limit_lower = 60 * 10**9  # unit is nano second, will be adjusted
+gap_limit_upper = 1600 * 10**9  # unit is nano second, will be adjusted
 selected_year = 2016
 
 def fetch_all():
@@ -220,7 +228,6 @@ pretty_matrix.index = ticker_history[tickers[0]].index
 if (EARLY_DEBUGGING):
     pdb.set_trace()
 
-
 # ----- ----- ----- ----- ----- ----- ----- ----- ----- ---- ----- -----]
 
 # Filling gaps in input data when gap is in market opened
@@ -258,7 +265,7 @@ if (FILLING):
 
     if (PLOT):  # Histogram of gap in time
         # First one is not a number
-        # timedelta --> integer for historgram
+        # timedelta --> integer as second for historgram
         a_temp = temp = \
             [(np.timedelta64(i, 's')/np.timedelta64(1,'s')).astype(int)
             for i in mask[1:]]
@@ -275,36 +282,59 @@ if (FILLING):
                 print ("{} saved.".format(given_args["out_file"]))
 
         # the histogram of the data
-         # arguments are passed to np.histogram
+        # arguments are passed to np.histogram
         n, bins, patches = plt.hist(a_temp, bins='auto')
-        plt.title("Histogram with 'auto' bins")
+        plt.title("Histogram of Time Gap")
 
         # To do
         #   second to 00:00:00 format
         #   display count in each bea in histogram
 
-        if (DEBUGGING):
-            pdb.set_trace()
+
+        if (VALUE_DISP):
+            bins_center = [statistics.mean([bins[i_dx] + bins[i_dx + 1]])
+                for i_dx in range(len(bins) - 1)]
+            # zip joins x and y coordinates in pairs
+            for x,y in zip(bins_center, n):
+
+                label = "{}".format(int(y))
+
+                plt.annotate(label, # this is the text
+                             (x,y), # this is the point to label
+                             textcoords="offset points", # how to position the text
+                             xytext=(0,10), # distance from text to points (x,y)
+                             ha='center') # horizontal alignment can be left, right or center
 
         plt.show()
+
 
 # (2) if gap is larger than limit, add fabricated time stamp and value
 #     value could be from linear, cubic or sinc (Lanczos3) interpolation,
 #     super resolution
+    # integer in second ---> TimeDelta in Nano second
+    # The first time gap is normal
+    # after then it should be filled but not after market period
+    gap_limit_lower = pd.to_timedelta(bins[0], unit='s')
+    gap_limit_upper = pd.to_timedelta(bins[1], unit='s')
+
+    if (DEBUGGING):
+        pdb.set_trace()
+
     for i_dx, i in enumerate(pretty_matrix.index):
-        if (i_dx != 0) and (mask.iloc[i_dx].value > gap_limit):
+        if (i_dx != 0) and (mask.iloc[i_dx] > gap_limit_lower and
+            mask.iloc[i_dx] <= gap_limit_upper):
             # Linear
             # Value difference between gap
             difference = \
                 pretty_matrix.iloc[i_dx, 0] - pretty_matrix.iloc[i_dx - 1, 0]
             # Increase of value in each insertion
-            increase = difference / int(mask.iloc[i_dx].value / gap_limit)
+            increase = difference / int(mask.iloc[i_dx] / gap_limit_upper)
             # Time difference between gap
             difference_name = \
                 pretty_matrix.index[i_dx] - pretty_matrix.index[i_dx - 1]
             # Increase of time in each insertion
-            increase_name = difference_name / int(mask.iloc[i_dx].value / gap_limit)
-            for j in range(int(mask.iloc[i_dx].value / gap_limit)):
+            increase_name = difference_name / int(mask.iloc[i_dx] / gap_limit_upper)
+            for j in range(int(mask.iloc[i_dx] / gap_limit_upper)):
                 cur_val = pretty_matrix.iloc[i_dx, 0] + j * increase
                 cur_name = pretty_matrix.index[i_dx] + j * increase_name
                 cur = pd.Series(data={pretty_matrix.columns[0]: cur_val},
@@ -321,10 +351,12 @@ if (FILLING):
             pretty_matrix_filled = \
                 pretty_matrix_filled.append(cur, ignore_index=False)
 
+    pretty_matrix_original = pretty_matrix
+    pretty_matrix = pretty_matrix_filled
+
     if (TESTING):
+        pdb.set_trace()
         print ( "Modified data size: {}".format(len(pretty_matrix_filled)) )
-
-
 
 # ![alt text](https://cdn-images-1.medium.com/max/800/0*MKgTBXtRYApe1ycw)
 
@@ -336,7 +368,6 @@ if (FILLING):
 
 
 # In[ ]:
-
 # Variance co-variance matrix
 
 product_matrix = np.matmul(excess_matrix.transpose(), excess_matrix)
@@ -387,7 +418,7 @@ pretty_matrix = pd.DataFrame(std_deviations).copy()
 pretty_matrix.columns = ['Std Dev']
 pretty_matrix.index = tickers
 
-if (DEBUGGING):
+if (EARLY_DEBUGGING):
     pretty_matrix
 
 
@@ -408,7 +439,7 @@ pretty_matrix = pd.DataFrame(sdev_product_matrix).copy()
 pretty_matrix.columns = tickers
 pretty_matrix.index = tickers
 
-if (DEBUGGING):
+if (EARLY_DEBUGGING):
     pretty_matrix
 
 
@@ -469,7 +500,7 @@ weights = minimize_volatility()
 
 pretty_weights = pd.DataFrame(weights * 100, index = tickers, columns = ["Weight %"])
 
-if (DEBUGGING):
+if (EARLY_DEBUGGING):
     pretty_weights
 
 
@@ -482,7 +513,7 @@ pretty_matrix = pd.DataFrame(correlation_matrix).copy()
 pretty_matrix.columns = tickers
 pretty_matrix.index = tickers
 
-if (DEBUGGING):
+if (EARLY_DEBUGGING):
     pretty_matrix
 
 
@@ -586,7 +617,7 @@ weights = minimize_volatility()
 
 pretty_weights = pd.DataFrame(weights * 100, index = tickers, columns = ["Weight %"])
 
-if (DEBUGGING):
+if (EARLY_DEBUGGING):
     pretty_weights
 
 
@@ -677,7 +708,7 @@ weights = maximize_sharpe_ratio()
 print("Took {:f}s to complete".format(time.time() - start))
 pretty_weights = pd.DataFrame(weights * 100, index = tickers, columns = ["Weight %"])
 
-if (DEBUGGING):
+if (EARLY_DEBUGGING):
     pretty_weights
 
 
@@ -686,7 +717,7 @@ if (DEBUGGING):
 
 # PLOTTING
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 def line_plot(line1, label1=None, units='', title=''):
     fig, ax = plt.subplots(1, figsize=(16, 9))

@@ -18,3 +18,24 @@ What do you think?
 We basically need to initialize a data stream of empty values
 For every minute as far back as the data goes
 And then we need to merge the txt file into that data, and for any zero value, we need it to take the prior time step value
+
+(Pdb) print(n)
+[1.0658e+05 1.1800e+02 2.0000e+00 0.0000e+00 0.0000e+00 0.0000e+00
+ 0.0000e+00 0.0000e+00 0.0000e+00 0.0000e+00 0.0000e+00 0.0000e+00
+ 2.6000e+01 0.0000e+00 0.0000e+00 0.0000e+00 0.0000e+00 5.0000e+00]
+
+(Pdb) print(bins)
+[6.0000e+01 1.6060e+04 3.2060e+04 4.8060e+04 6.4060e+04 8.0060e+04
+ 9.6060e+04 1.1206e+05 1.2806e+05 1.4406e+05 1.6006e+05 1.7606e+05
+ 1.9206e+05 2.0806e+05 2.2406e+05 2.4006e+05 2.5606e+05 2.7206e+05
+ 2.8806e+05]
+
+(Pdb) mask.head(5)
+timestamp
+2020-01-02 04:03:00        NaT
+2020-01-02 04:04:00   00:01:00
+2020-01-02 04:07:00   00:03:00
+2020-01-02 04:14:00   00:07:00
+2020-01-02 04:24:00   00:10:00
+Name: timestamp, dtype: timedelta64[ns]
+
