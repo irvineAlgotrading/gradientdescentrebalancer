@@ -5,10 +5,11 @@
 #
 
 # To do
-#   Filling gaps in input data
+#   Filling gaps in input data - Abandoned
 #     Only when market is opened?
 #     second to 00:00:00 format
 #     display count in each bea in histogram
+#   Feeding only nomral gap data to analysis
 
 # Reference:
 #   Add info in plot https://queirozf.com/entries/add-labels-and-text-to-matplotlib-plots-annotation-examples
@@ -52,7 +53,11 @@ TESTING = True
 FILLING = True  # Fill the gap in time
 PLOT = True
 VALUE_DISP = True  # Value on plot?
+JUPYTER_NOTEBOOK = False  # Greph shown in Jupyter Notebook
 
+
+# if (JUPYTER_NOTEBOOK):
+#     %matplotlib inline
 
 # In[ ]:
 
@@ -80,6 +85,8 @@ cumulative_returns = {}
 gap_limit_lower = 60 * 10**9  # unit is nano second, will be adjusted
 gap_limit_upper = 1600 * 10**9  # unit is nano second, will be adjusted
 selected_year = 2016
+label_text = list()
+
 
 def fetch_all():
   for ticker in tickers:
@@ -193,15 +200,9 @@ for i in range(0, hist_length):
   for idx, ticker in enumerate(tickers):
     excess_matrix[i][idx] = ticker_history[ticker].iloc[i]['excess_return']
 
-if (EARLY_DEBUGGING):
-    pdb.set_trace()
-
 # In[9]:
 
-
 # Excess matrix
-
-
 
 excess_matrix = np.zeros((hist_length, len(tickers)))
 
@@ -210,7 +211,12 @@ for i in range(0, hist_length):
     excess_matrix[i][idx] = ticker_history[ticker].iloc[i]['excess_return']
 
 
-# The first line creates an n × k matrix and the loops assign the corresponding values to each ticker.
+if (EARLY_DEBUGGING):
+    pdb.set_trace()
+
+
+# The first line creates an n × k matrix and the loops assign
+# the corresponding values to each ticker.
 
 
 # In[ ]:
@@ -260,8 +266,6 @@ if (FILLING):
         else:
             inside_data[type(i)] += 1
 
-    if (EARLY_DEBUGGING):
-        pdb.set_trace()
 
     if (PLOT):  # Histogram of gap in time
         # First one is not a number
@@ -281,10 +285,29 @@ if (FILLING):
             else:
                 print ("{} saved.".format(given_args["out_file"]))
 
-        # the histogram of the data
+        # Draw the figure to get the current axes text
+        fig, ax = plt.subplots()
         # arguments are passed to np.histogram
         n, bins, patches = plt.hist(a_temp, bins='auto')
         plt.title("Histogram of Time Gap")
+
+        plt.draw()
+
+        if (EARLY_DEBUGGING):
+            pdb.set_trace()
+
+        ax.set_xticks(bins)
+        # Edit the text to your liking
+        for loc in bins:
+            a = loc % 60
+            b = loc/60 % 60
+            c = loc/60/60
+            label_text.append( "{}:{}:{}".format(int(c), int(b), int(a)) )
+
+        ax.set_xticklabels(label_text)# the histogram of the data
+        plt.xticks(rotation=90)
+        plt.xlabel('Time (s)')
+        plt.ylabel('Count')
 
         # To do
         #   second to 00:00:00 format
@@ -292,7 +315,7 @@ if (FILLING):
 
 
         if (VALUE_DISP):
-            bins_center = [statistics.mean([bins[i_dx] + bins[i_dx + 1]])
+            bins_center = [ ((bins[i_dx] + bins[i_dx + 1]) / 2.0)
                 for i_dx in range(len(bins) - 1)]
             # zip joins x and y coordinates in pairs
             for x,y in zip(bins_center, n):
@@ -308,9 +331,9 @@ if (FILLING):
         plt.show()
 
 
-# (2) if gap is larger than limit, add fabricated time stamp and value
-#     value could be from linear, cubic or sinc (Lanczos3) interpolation,
-#     super resolution
+    # (2) if gap is larger than limit, add fabricated time stamp and value
+    #     value could be from linear, cubic or sinc (Lanczos3) interpolation,
+    #     super resolution
     # integer in second ---> TimeDelta in Nano second
     # The first time gap is normal
     # after then it should be filled but not after market period
@@ -318,6 +341,7 @@ if (FILLING):
     gap_limit_upper = pd.to_timedelta(bins[1], unit='s')
 
     if (DEBUGGING):
+        sys.exit(1)
         pdb.set_trace()
 
     for i_dx, i in enumerate(pretty_matrix.index):
@@ -362,14 +386,17 @@ if (FILLING):
 
 # **Risk Modeling**
 #
-# There are many approaches that can be used to optimize a portfolio. In the present article we will analyze the variance and covariance of individual assets in order to minimize the global risk.
+# There are many approaches that can be used to optimize a portfolio.
+# In the present article we will analyze the variance and covariance of
+# individual assets in order to minimize the global risk.
 #
-# To this end, we will use our Excess Return Matrix to compute the Variance-covariance Matrix Σ from it.
+# To this end, we will use our Excess Return Matrix
+# to compute the Variance-covariance Matrix Σ from it.
 
 
 # In[ ]:
 # Variance co-variance matrix
-
+# product_matrix will be one value
 product_matrix = np.matmul(excess_matrix.transpose(), excess_matrix)
 var_covar_matrix = product_matrix / hist_length
 
@@ -381,7 +408,7 @@ pretty_matrix.columns = tickers
 pretty_matrix.index = tickers
 
 if (DEBUGGING):
-    pretty_matrix
+    pdb.set_trace()
 
 
 # ![alt text](https://cdn-images-1.medium.com/max/800/0*00nkyzYnQm3T28xN)
@@ -390,11 +417,13 @@ if (DEBUGGING):
 #
 # When x = y the value is the variance of the asset
 
-# Before we can jump into the actual portfolio optimization, our next target is the Correlation Matrix, where every item is defined like:
+# Before we can jump into the actual portfolio optimization,
+# our next target is the Correlation Matrix, where every item is defined like:
 
 # ![alt text](https://cdn-images-1.medium.com/max/600/0*iPVjT37R1LW6FMZp)
 
-# The correlation between assets X and Y is their covariance divided by the product of their standard deviations.
+# The correlation between assets X and Y is their covariance divided by
+# the product of their standard deviations.
 #
 # We already have cov(X, Y) stored in var_covar_matrix so we need a k × k matrix with the products of each standard deviation.
 #
@@ -422,7 +451,8 @@ if (EARLY_DEBUGGING):
     pretty_matrix
 
 
-# To generate the matrix with the standard deviation products, we multiply the above by its transpose.
+# To generate the matrix with the standard deviation products,
+# we multiply the above by its transpose.
 
 # In[ ]:
 
