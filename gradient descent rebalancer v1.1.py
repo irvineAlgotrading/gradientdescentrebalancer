@@ -382,21 +382,27 @@ if (FILLING):
         pdb.set_trace()
         print ( "Modified data size: {}".format(len(pretty_matrix_filled)) )
 
+
+# ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
 # ![alt text](https://cdn-images-1.medium.com/max/800/0*MKgTBXtRYApe1ycw)
 
 # **Risk Modeling**
 #
 # There are many approaches that can be used to optimize a portfolio.
-# In the present article we will analyze the variance and covariance of
-# individual assets in order to minimize the global risk.
+#
+# In the present article we will analyze
+# the variance and covariance of
+# individual assets in order
+# to minimize the global risk.
 #
 # To this end, we will use our Excess Return Matrix
 # to compute the Variance-covariance Matrix Σ from it.
 
-
 # In[ ]:
 # Variance co-variance matrix
-# product_matrix will be one value
+
+# To Do
+# product_matrix will be one value? yes and it will be indentical matrix`
 product_matrix = np.matmul(excess_matrix.transpose(), excess_matrix)
 var_covar_matrix = product_matrix / hist_length
 
@@ -425,7 +431,8 @@ if (DEBUGGING):
 # The correlation between assets X and Y is their covariance divided by
 # the product of their standard deviations.
 #
-# We already have cov(X, Y) stored in var_covar_matrix so we need a k × k matrix with the products of each standard deviation.
+# We already have cov(X, Y) stored in var_covar_matrix so we need
+# a k × k matrix with the products of each standard deviation.
 #
 # Let’s compute the individual standard deviations:
 
@@ -492,11 +499,15 @@ def minimize_volatility():
 
   # Define the model
   # Portfolio Volatility = Sqrt (Transpose (Wt.SD) * Correlation Matrix * Wt. SD)
+  # Variable to optimzed: Wt
+  # Cost is Portfolio Volatility 
 
   if (DEBUGGING):
      pdb.set_trace()
 
-  ticker_weights = tf.Variable(np.full((len(tickers), 1), 1.0 / len(tickers))) # our variables
+  # our variable, which will be optimized
+  ticker_weights = tf.Variable(np.full((len(tickers), 1), 1.0 / len(tickers)))
+
   weighted_std_devs = tf.multiply(ticker_weights, std_deviations)
 
   product_1 = tf.transpose(weighted_std_devs)
